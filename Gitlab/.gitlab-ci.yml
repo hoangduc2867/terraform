@@ -1,0 +1,49 @@
+stages:
+  - validate
+  - plan
+  - apply
+
+# Cache terraform files to speed up pipeline runs
+cache:
+  key: "$CI_COMMIT_REF_NAME"
+  paths:
+    - .terraform/
+
+# Define the Terraform container image for the pipeline
+image: hashicorp/terraform:latest
+
+before_script:
+  - echo "Setting up Terraform and AWS credentials"
+  - terraform --version
+  - aws --version
+  - aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+  - aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+  - aws configure set region $AWS_DEFAULT_REGION
+  - terraform init
+
+# Stage 1: Validate Terraform code
+validate:
+  stage: validate
+  script:
+    - terraform validate
+  only:
+    - main
+    - merge_requests
+
+# Stage 2: Terraform Plan
+plan:
+  stage: plan
+  script:
+    - terraform plan
+  only:
+    - main
+
+# Stage 3: Apply Terraform changes (only triggered manually)
+apply:
+  stage: apply
+  script:
+    - terraform apply
+  environment:
+    name: production
+  only:
+    - main
